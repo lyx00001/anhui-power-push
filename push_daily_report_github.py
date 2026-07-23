@@ -182,7 +182,7 @@ def main():
         if price_data:
             # 必须有有效的 RtPrice 才认为日期可用
             rt_count = sum(1 for data in price_data.values() if data.get("RtPrice") is not None)
-            if rt_count > 0:
+            if rt_count >= 20:
                 found_date = check_date
                 print(f"[INFO] {check_date} RtPrice 有效记录: {rt_count}")
                 break
