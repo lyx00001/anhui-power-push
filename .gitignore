@@ -1,0 +1,28 @@
+# HTML 报告文件（本地生成，不推送到 GitHub）
+*.html
+
+# 报告目录
+reports/
+
+# WorkBuddy 配置
+.workbuddy/
+
+# 图片资源
+*.png
+*.jpg
+*.jpeg
+
+# 设计文档
+*.md
+
+# 一次性工具
+extract_grafana_queries.py
+grafana_queries.csv
+
+# 本地生成脚本（依赖内网 InfluxDB，只用于本地自动化）
+generate_daily_report.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
