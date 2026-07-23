@@ -1,0 +1,67 @@
+name: 安徽现货价差日报推送
+
+on:
+  schedule:
+    # 北京时间 09:00 每日执行
+    # UTC 时间 = 北京时间 - 8 小时
+    - cron: '0 1 * * *'         # UTC 01:00 = 北京 09:00
+  workflow_dispatch:             # 支持手动触发
+
+jobs:
+  push-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Restore last-report-date cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: .last_report_date
+          key: last-report-date-${{ github.run_id }}
+          restore-keys: |
+            last-report-date-
+
+      - name: Read last report date
+        id: read-date
+        run: |
+          if [ -f .last_report_date ]; then
+            LAST_DATE=$(cat .last_report_date)
+            echo "last_report_date=$LAST_DATE" >> $GITHUB_OUTPUT
+            echo "[INFO] 上次日报推送日期: $LAST_DATE"
+          else
+            echo "last_report_date=" >> $GITHUB_OUTPUT
+            echo "[INFO] 无上次推送记录"
+          fi
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run push_daily_report_github.py
+        id: push
+        continue-on-error: true
+        env:
+          LAST_REPORT_DATE: ${{ steps.read-date.outputs.last_report_date }}
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+        run: python push_daily_report_github.py
+
+      - name: Save report date on success
+        if: steps.push.outcome == 'success'
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          echo "$TODAY" > .last_report_date
+          echo "[INFO] 记录日报推送日期: $TODAY"
+
+      - name: Save last-report-date cache
+        if: steps.push.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: .last_report_date
+          key: last-report-date-${{ github.run_id }}
