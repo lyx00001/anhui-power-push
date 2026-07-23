@@ -1,0 +1,67 @@
+name: 安徽 D+1 价差预测推送
+
+on:
+  schedule:
+    # 北京时间 09:05 ~ 18:35 每 30 分钟检查一次
+    # UTC 时间 = 北京时间 - 8 小时
+    - cron: '5,35 1-10 * * *'  # UTC 01:05~10:35 = 北京 09:05~18:35 每30分钟
+  workflow_dispatch:           # 支持手动触发
+
+jobs:
+  push-forecast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Restore last-push-date cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: .last_push_date
+          key: last-push-date-${{ github.run_id }}
+          restore-keys: |
+            last-push-date-
+
+      - name: Read last push date
+        id: read-date
+        run: |
+          if [ -f .last_push_date ]; then
+            LAST_DATE=$(cat .last_push_date)
+            echo "last_push_date=$LAST_DATE" >> $GITHUB_OUTPUT
+            echo "[INFO] 上次推送日期: $LAST_DATE"
+          else
+            echo "last_push_date=" >> $GITHUB_OUTPUT
+            echo "[INFO] 无上次推送记录"
+          fi
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run push_forecast.py
+        id: push
+        continue-on-error: true  # exit 2 = 未推送（数据未就绪）不算失败
+        env:
+          LAST_PUSH_DATE: ${{ steps.read-date.outputs.last_push_date }}
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+        run: python push_forecast.py
+
+      - name: Save push date on success
+        if: steps.push.outcome == 'success'
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          echo "$TODAY" > .last_push_date
+          echo "[INFO] 记录推送日期: $TODAY"
+
+      - name: Save last-push-date cache
+        if: steps.push.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: .last_push_date
+          key: last-push-date-${{ github.run_id }}
