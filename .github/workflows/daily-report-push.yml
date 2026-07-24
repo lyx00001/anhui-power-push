@@ -6,6 +6,7 @@ on:
     # UTC 时间 = 北京时间 - 8 小时
     - cron: '0 1 * * *'         # UTC 01:00 = 北京 09:00
   workflow_dispatch:             # 支持手动触发
+# force re-register schedule
 
 jobs:
   push-report:
